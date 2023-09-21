@@ -26,7 +26,7 @@ $modsData = mysqli_fetch_all($modsResult, MYSQLI_ASSOC);
 <!DOCTYPE html>
 <html>
 <head>
-    <title>gfaUnDead - Mods</title>
+    <title>StreamingTools - Mods</title>
     <link rel="icon" href="https://cdn.yourstreaming.tools/img/logo.png" sizes="32x32" />
     <link rel="icon" href="https://cdn.yourstreaming.tools/img/logo.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="https://cdn.yourstreaming.tools/img/logo.png" />
@@ -40,7 +40,7 @@ $modsData = mysqli_fetch_all($modsResult, MYSQLI_ASSOC);
 <nav class="navbar navbar-default">
     <div class="container-fluid">
         <div class="navbar-header">
-          <a class="navbar-brand" href="">gfaUnDead</a>
+          <a class="navbar-brand" href="">StreamingTools</a>
         </div>
         <ul class="nav navbar-nav">
             <li><a href="dashboard.php">Dashboard</a></li>
@@ -49,7 +49,7 @@ $modsData = mysqli_fetch_all($modsResult, MYSQLI_ASSOC);
             <li><a href="vips.php">VIPs</a></li>
             <li><a href="logout.php">Logout</a></li>
         </ul>
-        <p class="navbar-text navbar-right">&copy; <?php echo date("Y"); ?> gfaUnDead. All rights reserved.</p>
+        <p class="navbar-text navbar-right">&copy; <?php echo date("Y"); ?> StreamingTools. All rights reserved.</p>
     </div>
 </nav>
 <h1>Welcome <?php echo $username; ?> to the mods page!</h1>
