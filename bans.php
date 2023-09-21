@@ -49,39 +49,45 @@ $clientID = ''; // CHANGE TO MAKE THIS WORK
 $allBans = [];
 $bannedUsers = [];
 do {
-    // Set up cURL request with headers
-    $curl = curl_init($bannedURL);
-    curl_setopt($curl, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $accessToken,
-        'Client-ID: ' . $clientID
-    ]);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+  // Set up cURL request with headers
+  $curl = curl_init($bannedURL);
+  curl_setopt($curl, CURLOPT_HTTPHEADER, [
+      'Authorization: Bearer ' . $accessToken,
+      'Client-ID: ' . $clientID
+  ]);
+  curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 
-    // Execute cURL request
-    $response = curl_exec($curl);
+  // Execute cURL request
+  $response = curl_exec($curl);
 
-    if ($response === false) {
-        // Handle cURL error
-        echo 'cURL error: ' . curl_error($curl);
-        exit;
-    }
+  if ($response === false) {
+      // Handle cURL error
+      echo 'cURL error: ' . curl_error($curl);
+      exit;
+  }
 
-    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    if ($httpCode !== 200) {
-        // Handle non-successful HTTP response
-        $HTTPError = 'HTTP error: ' . $httpCode;
-        exit;
-    }
+  $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+  if ($httpCode !== 200) {
+      // Handle non-successful HTTP response
+      $HTTPError = 'HTTP error: ' . $httpCode;
+      exit;
+  }
 
-    curl_close($curl);
+  curl_close($curl);
 
-    // Process and append VIP information to the array
-    $banData = json_decode($response, true);
-    $allBans = array_merge($allBans, $banData['data']);
+  // Process and append user data to the $bannedUsers array
+  $banData = json_decode($response, true);
+  foreach ($banData['data'] as $ban) {
+      $bannedUsers[] = [
+          'userName' => $ban['user_name'],
+          'reason' => $ban['reason'],
+          'moderatorName' => $ban['moderator_name']
+      ];
+  }
 
-    // Check if there are more pages of BANS
-    $cursor = $banData['pagination']['cursor'] ?? null;
-    $bannedURL = "https://api.twitch.tv/helix/moderation/banned?broadcaster_id=$broadcasterID&after=$cursor";
+  // Check if there are more pages of BANS
+  $cursor = $banData['pagination']['cursor'] ?? null;
+  $bannedURL = "https://api.twitch.tv/helix/moderation/banned?broadcaster_id=$broadcasterID&after=$cursor";
 
 } while ($cursor);
 
@@ -178,6 +184,7 @@ $displaySearchBar = count($allBans) > $bansPerPage;
         <tr>
             <th>Username</th>
             <th>Reason</th>
+            <th>Moderator</th>
         </tr>
       </thead>
       <tbody>
@@ -186,6 +193,7 @@ $displaySearchBar = count($allBans) > $bansPerPage;
             <tr>
               <td class="username"><?php echo $user['userName']; ?></td>
               <td><?php echo $user['reason']; ?></td>
+              <td><?php echo $user['moderatorName']; ?></td> <!-- Display Moderator's Name -->
             </tr>
           <?php endforeach; ?>
         <?php else: ?>
