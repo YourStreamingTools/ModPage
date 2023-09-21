@@ -1,116 +1,235 @@
 <?php
-// Start session
+// Initialize the session
 session_start();
 
-// Check if user is logged in
+// check if user is logged in
 if (!isset($_SESSION['access_token'])) {
-  header("Location: login.php");
-  exit();
+    header('Location: login.php');
+    exit();
 }
 
-// Database credentials
+// Connect to database
 require_once "db_connect.php";
 
-$userQuery = "SELECT * FROM users WHERE access_token = '{$_SESSION['access_token']}'";
-$result = mysqli_query($conn, $userQuery);
-$userData = mysqli_fetch_assoc($result);
-$username = $userData['username'];
-// Free the result set
-mysqli_free_result($result);
+// Default Timezone Settings
+$defaultTimeZone = 'Etc/UTC';
+$user_timezone = $defaultTimeZone;
 
-// Fetch banned users from the database
-$query = "SELECT * FROM bans";
-$result = mysqli_query($conn, $query);
+// Fetch the user's data from the database based on the access_token
+$access_token = $_SESSION['access_token'];
+$stmt = $conn->prepare("SELECT * FROM users WHERE access_token = ?");
+$stmt->bind_param("s", $access_token);
+$stmt->execute();
+$result = $stmt->get_result();
+$user = $result->fetch_assoc();
+$user_id = $user['id'];
+$username = $user['username'];
+$broadcasterID = $user['twitch_user_id'];
+$twitchDisplayName = $user['twitch_display_name'];
+$twitch_profile_image_url = $user['profile_image'];
+$is_admin = ($user['is_admin'] == 1);
+$accessToken = $access_token;
+$user_timezone = $user['timezone'];
+date_default_timezone_set($user_timezone);
 
-// Store banned users in an array
+// Determine the greeting based on the user's local time
+$currentHour = date('G');
+$greeting = '';
+
+if ($currentHour < 12) {
+    $greeting = "Good morning";
+} else {
+    $greeting = "Good afternoon";
+}
+
+// API endpoint to fetch BANS of the channel
+$bannedURL = "https://api.twitch.tv/helix/moderation/banned?broadcaster_id=$broadcasterID";
+$clientID = ''; // CHANGE TO MAKE THIS WORK
+
+$allBans = [];
 $bannedUsers = [];
-while ($row = mysqli_fetch_assoc($result)) {
-    $bannedUsers[] = $row;
-}
+do {
+    // Set up cURL request with headers
+    $curl = curl_init($bannedURL);
+    curl_setopt($curl, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $accessToken,
+        'Client-ID: ' . $clientID
+    ]);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 
-// Function to search for banned users based on username
-function searchBannedUsers($users, $query) {
-    $filteredUsers = [];
-    foreach ($users as $user) {
-        if (stripos($user['userName'], $query) !== false) {
-            $filteredUsers[] = $user;
-        }
+    // Execute cURL request
+    $response = curl_exec($curl);
+
+    if ($response === false) {
+        // Handle cURL error
+        echo 'cURL error: ' . curl_error($curl);
+        exit;
     }
-    return $filteredUsers;
+
+    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    if ($httpCode !== 200) {
+        // Handle non-successful HTTP response
+        $HTTPError = 'HTTP error: ' . $httpCode;
+        exit;
+    }
+
+    curl_close($curl);
+
+    // Process and append VIP information to the array
+    $banData = json_decode($response, true);
+    $allBans = array_merge($allBans, $banData['data']);
+
+    // Check if there are more pages of BANS
+    $cursor = $banData['pagination']['cursor'] ?? null;
+    $bannedURL = "https://api.twitch.tv/helix/moderation/banned?broadcaster_id=$broadcasterID&after=$cursor";
+
+} while ($cursor);
+
+foreach ($allBans as $ban) {
+  $bannedUsers[] = [
+      'userName' => $ban['user_name'],
+      'reason' => $ban['reason']
+  ];
 }
 
-// Check if a search query is submitted
-if (isset($_GET['search'])) {
-    $searchQuery = $_GET['search'];
-    $bannedUsers = searchBannedUsers($bannedUsers, $searchQuery);
-}
+// Number of BANS per page
+$bansPerPage = 50;
+
+// Calculate the total number of pages
+$totalPages = ceil(count($allBans) / $bansPerPage);
+
+// Current page (default to 1 if not specified)
+$currentPage = isset($_GET['page']) ? max(1, min($totalPages, intval($_GET['page']))) : 1;
+
+// Calculate the start and end index for the current page
+$startIndex = ($currentPage - 1) * $bansPerPage;
+$endIndex = $startIndex + $bansPerPage;
+
+// Get BANS for the current page
+$BANsForCurrentPage = array_slice($allBans, $startIndex, $bansPerPage);
+$displaySearchBar = count($allBans) > $bansPerPage;
 ?>
 <!DOCTYPE html>
-<html>
-<head>
-    <title>StreamingTools - Bans</title>
-    <link rel="icon" href="https://cdn.yourstreaming.tools/img/logo.png" sizes="32x32" />
-    <link rel="icon" href="https://cdn.yourstreaming.tools/img/logo.png" sizes="192x192" />
-    <link rel="apple-touch-icon" href="https://cdn.yourstreaming.tools/img/logo.png" />
-    <meta name="msapplication-TileImage" content="https://cdn.yourstreaming.tools/img/logo.png" />
-    <link rel="stylesheet" href="include/style.css">
-    <link rel="stylesheet" href="include/bootstrap.css">
-    <script src="include/bootstrap.min.js"></script>
-    <script src="include/jquery.min.js"></script>
-</head>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YourStreamingTools - Twitch BANS</title>
+    <link rel="stylesheet" href="https://dhbhdrzi4tiry.cloudfront.net/cdn/sites/foundation.min.css">
+    <link rel="stylesheet" href="https://cdn.yourstreaming.tools/css/custom.css">
+    <link rel="stylesheet" href="include/pagination.css">
+    <script src="https://cdn.yourstreaming.tools/js/about.js"></script>
+  	<link rel="icon" href="https://cdn.yourstreaming.tools/img/logo.jpeg">
+  	<link rel="apple-touch-icon" href="https://cdn.yourstreaming.tools/img/logo.jpeg">
+  </head>
 <body>
-<nav class="navbar navbar-default">
-    <div class="container-fluid">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="">StreamingTools</a>
-        </div>
-        <ul class="nav navbar-nav">
-            <li><a href="dashboard.php">Dashboard</a></li>
-            <li class="active"><a href="bans.php">Bans</a></li>
-            <li><a href="mods.php">Mods</a></li>
-            <li><a href="vips.php">VIPs</a></li>
-            <li><a href="logout.php">Logout</a></li>
+<!-- Navigation -->
+<div class="title-bar" data-responsive-toggle="mobile-menu" data-hide-for="medium">
+  <button class="menu-icon" type="button" data-toggle="mobile-menu"></button>
+  <div class="title-bar-title">Menu</div>
+</div>
+<nav class="top-bar stacked-for-medium" id="mobile-menu">
+  <div class="top-bar-left">
+    <ul class="dropdown vertical medium-horizontal menu" data-responsive-menu="drilldown medium-dropdown hinge-in-from-top hinge-out-from-top">
+      <li class="menu-text">YourStreamingTools</li>
+      <li><a href="index.php">Dashboard</a></li>
+      <li>
+        <a>Twitch Data</a>
+        <ul class="vertical menu" data-dropdown-menu>
+          <li><a href="bans.php">View Bans</a></li>
+          <li><a href="mods.php">View Mods</a></li>
+          <li><a href="followers.php">View Followers</a></li>
+          <li><a href="subscribers.php">View Subscribers</a></li>
+          <li><a href="vips.php">View VIPs</a></li>
         </ul>
-        <p class="navbar-text navbar-right">&copy; <?php echo date("Y"); ?> StreamingTools. All rights reserved.</p>
-    </div>
+      </li>
+      <li>
+        <a>Profile</a>
+        <ul class="vertical menu" data-dropdown-menu>
+          <li><a href="profile.php">View Profile</a></li>
+          <li><a href="logout.php">Logout</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="top-bar-right">
+    <ul class="menu">
+      <li><a class="popup-link" onclick="showPopup()">&copy; 2023 YourStreamingTools. All rights reserved.</a></li>
+    </ul>
+  </div>
 </nav>
+<!-- /Navigation -->
 
-<h1>Welcome <?php echo $username; ?> to the bans dashboard!</h1>
-<div class="row">
-    <form action="" method="GET">
-        <div class="form-group">
-            <input type="text" name="search" class="form-control" placeholder="Search by username" value="<?php echo isset($_GET['search']) ? $_GET['search'] : ''; ?>">
+<div class="row column">
+  <br>
+  <h1><?php echo "$greeting, <img id='profile-image' src='$twitch_profile_image_url' width='50px' height='50px' alt='$twitchDisplayName Profile Image'>$twitchDisplayName!"; ?></h1>
+  <br>
+  <?php if ($displaySearchBar) : ?>
+    <div class="row column">
+        <div class="search-container">
+            <input type="text" id="vip-search" placeholder="Search for BANS...">
         </div>
-        <div class="form-group">
-            <input type="submit" class="btn btn-primary" value="Search">
-        </div>
-    </form>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Reason</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (count($bannedUsers) > 0): ?>
-                    <?php foreach ($bannedUsers as $user): ?>
-                        <tr>
-                            <td class="username"><?php echo $user['userName']; ?></td>
-                            <td><?php echo $user['reason']; ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="2">No banned users found.</td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
     </div>
+  <?php endif; ?>
+  <h1>Your BANS:</h1>
+  <div class="col-md-12">
+    <table class="table">
+      <thead>
+        <tr>
+            <th>Username</th>
+            <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (count($bannedUsers) > 0): ?>
+          <?php foreach ($bannedUsers as $user): ?>
+            <tr>
+              <td class="username"><?php echo $user['userName']; ?></td>
+              <td><?php echo $user['reason']; ?></td>
+            </tr>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <tr>
+            <td colspan="2">No banned users found.</td>
+          </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+      <?php if ($totalPages > 1) : ?>
+          <?php for ($page = 1; $page <= $totalPages; $page++) : ?>
+              <?php if ($page === $currentPage) : ?>
+                  <span class="current-page"><?php echo $page; ?></span>
+              <?php else : ?>
+                  <a href="?page=<?php echo $page; ?>"><?php echo $page; ?></a>
+              <?php endif; ?>
+          <?php endfor; ?>
+      <?php endif; ?>
+  </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://dhbhdrzi4tiry.cloudfront.net/cdn/sites/foundation.js"></script>
+<script>$(document).foundation();</script>
+<script>
+$(document).ready(function() {
+    <?php if ($displaySearchBar) : ?>
+    $('#vip-search').on('input', function() {
+        var searchTerm = $(this).val().toLowerCase();
+        $('.vip').each(function() {
+            var vipName = $(this).find('span').text().toLowerCase();
+            if (vipName.includes(searchTerm)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+    <?php endif; ?>
+});
+</script>
 </body>
 </html>
