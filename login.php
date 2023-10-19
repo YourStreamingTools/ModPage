@@ -75,7 +75,8 @@ if (isset($_GET['code'])) {
 
         if (mysqli_num_rows($result) > 0) {
             // User is authorized, insert/update the access token in the 'users' table
-            $insertQuery = "INSERT INTO users (username, access_token, twitch_display_name, profile_image_url, twitch_user_id) VALUES ('$twitchUsername', '$accessToken', '$twitchDisplayName', '$profileImageUrl', '$twitchUserId')
+            $insertQuery = "INSERT INTO users (username, access_token, twitch_display_name, profile_image_url, twitch_user_id) 
+                VALUES ('$twitchUsername', '{$_SESSION['access_token']}', '$twitchDisplayName', '$profileImageUrl', '$twitchUserId')
                 ON DUPLICATE KEY UPDATE access_token = '{$_SESSION['access_token']}'";
             $insertResult = mysqli_query($conn, $insertQuery);
 
@@ -94,7 +95,7 @@ if (isset($_GET['code'])) {
                 exit;
             } else {
                 // Handle the case where the insertion failed
-                echo "Failed to save user information.";
+                echo "Failed to save user information. Error: " . mysqli_error($conn);
                 exit;
             }
         } else {
