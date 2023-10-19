@@ -30,7 +30,7 @@ if (isset($_GET['code'])) {
     $tokenURL = 'https://id.twitch.tv/oauth2/token';
     $postData = array(
         'client_id' => $clientID,
-        'client_secret' => 'nj8ie851916b4iwjrw29zsiingb7y2',
+        'client_secret' => $clientSecret,
         'code' => $code,
         'grant_type' => 'authorization_code',
         'redirect_uri' => $redirectURI
