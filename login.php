@@ -65,6 +65,9 @@ if (isset($_GET['code'])) {
 
     if (isset($userInfo['data']) && count($userInfo['data']) > 0) {
         $twitchUsername = $userInfo['data'][0]['login'];
+        $twitchDisplayName = $userInfo['data'][0]['display_name'];
+        $profileImageUrl = $userInfo['data'][0]['profile_image_url'];
+        $twitchUserId = $userInfo['data'][0]['id'];
         
         // Check if the user is authorized in the 'mods' table
         $checkQuery = "SELECT * FROM mods WHERE username = '$twitchUsername'";
@@ -72,8 +75,8 @@ if (isset($_GET['code'])) {
 
         if (mysqli_num_rows($result) > 0) {
             // User is authorized, insert/update the access token in the 'users' table
-            $insertQuery = "INSERT INTO users (username, access_token) VALUES ('$twitchUsername', '{$_SESSION['access_token']}')
-                            ON DUPLICATE KEY UPDATE access_token = '{$_SESSION['access_token']}'";
+            $insertQuery = "INSERT INTO users (username, access_token, twitch_display_name, profile_image_url, twitch_user_id) VALUES ('$twitchUsername', '$accessToken', '$twitchDisplayName', '$profileImageUrl', '$twitchUserId')
+                ON DUPLICATE KEY UPDATE access_token = '{$_SESSION['access_token']}'";
             $insertResult = mysqli_query($conn, $insertQuery);
 
             if ($insertResult) {
@@ -92,18 +95,22 @@ if (isset($_GET['code'])) {
             } else {
                 // Handle the case where the insertion failed
                 echo "Failed to save user information.";
+                exit;
             }
         } else {
             // User is not authorized, display an error message
             echo "You are not authorized to access this page.";
             // Redirect to the unauthorized page when it's built.
             // header('Location: unauthorized.php');
+            exit;
         }
         echo "Welcome " . $twitchUsername . ", we are logging you into the mod index if you are authorized.<br>";
         echo "If you haven't been redirected to the index yet: <a href='index.php'>Click Here</a>";
+        exit;
     } else {
         // Failed to fetch user information from Twitch
         echo "Failed to fetch user information from Twitch.";
+        exit;
     }
 }
 
