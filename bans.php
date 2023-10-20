@@ -38,7 +38,7 @@ if ($currentHour < 12) {
     $greeting = "Good afternoon";
 }
 
-$streamerName = "the_rocketwolf";
+$streamerName = ""; // ENTER THE STREAMER NAME
 $stmt = $conn->prepare("SELECT twitch_user_id, access_token FROM users WHERE username = ?");
 $stmt->bind_param("s", $streamerName);
 $stmt->execute();
