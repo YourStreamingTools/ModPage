@@ -16,9 +16,8 @@ $defaultTimeZone = 'Etc/UTC';
 $user_timezone = $defaultTimeZone;
 
 // Fetch the user's data from the database based on the access_token
-$access_token = $_SESSION['access_token'];
 $stmt = $conn->prepare("SELECT * FROM users WHERE access_token = ?");
-$stmt->bind_param("s", $access_token);
+$stmt->bind_param("s", $_SESSION['access_token']);
 $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
@@ -26,7 +25,6 @@ $user_id = $user['id'];
 $username = $user['username'];
 $twitchDisplayName = $user['twitch_display_name'];
 $twitch_profile_image_url = $user['profile_image_url'];
-$accessToken = $access_token;
 $user_timezone = $user['timezone'];
 date_default_timezone_set($user_timezone);
 
