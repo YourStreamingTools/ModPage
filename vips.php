@@ -24,10 +24,8 @@ $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 $user_id = $user['id'];
 $username = $user['username'];
-$broadcasterID = $user['twitch_user_id'];
 $twitchDisplayName = $user['twitch_display_name'];
-$twitch_profile_image_url = $user['profile_image'];
-$is_admin = ($user['is_admin'] == 1);
+$twitch_profile_image_url = $user['profile_image_url'];
 $accessToken = $access_token;
 $user_timezone = $user['timezone'];
 date_default_timezone_set($user_timezone);
@@ -42,9 +40,16 @@ if ($currentHour < 12) {
     $greeting = "Good afternoon";
 }
 
+$streamerName = ""; // ENTER THE STREAMER NAME
+$stmt = $conn->prepare("SELECT twitch_user_id, access_token FROM users WHERE username = ?");
+$stmt->bind_param("s", $streamerName);
+$stmt->execute();
+$stmt->bind_result($broadcasterID, $accessToken);
+$stmt->fetch();
+$clientID = ''; // CHANGE TO MAKE THIS WORK
+
 // API endpoint to fetch VIPs of the channel
 $vipsURL = "https://api.twitch.tv/helix/channels/vips?broadcaster_id=$broadcasterID";
-$clientID = ''; // CHANGE TO MAKE THIS WORK
 
 $allVIPs = [];
 do {
