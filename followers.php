@@ -10,26 +10,21 @@ if (!isset($_SESSION['access_token'])) {
 
 // Connect to database
 require_once "db_connect.php";
-include 'database.php';
 
 // Default Timezone Settings
 $defaultTimeZone = 'Etc/UTC';
 $user_timezone = $defaultTimeZone;
 
 // Fetch the user's data from the database based on the access_token
-$access_token = $_SESSION['access_token'];
 $stmt = $conn->prepare("SELECT * FROM users WHERE access_token = ?");
-$stmt->bind_param("s", $access_token);
+$stmt->bind_param("s", $_SESSION['access_token']);
 $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 $user_id = $user['id'];
 $username = $user['username'];
-$broadcasterID = $user['twitch_user_id'];
-$accessToken = $access_token;
 $twitchDisplayName = $user['twitch_display_name'];
-$twitch_profile_image_url = $user['profile_image'];
-$is_admin = ($user['is_admin'] == 1);
+$twitch_profile_image_url = $user['profile_image_url'];
 $user_timezone = $user['timezone'];
 date_default_timezone_set($user_timezone);
 
@@ -43,9 +38,16 @@ if ($currentHour < 12) {
     $greeting = "Good afternoon";
 }
 
+$streamerName = ""; // ENTER THE STREAMER NAME
+$stmt = $conn->prepare("SELECT twitch_user_id, access_token FROM users WHERE username = ?");
+$stmt->bind_param("s", $streamerName);
+$stmt->execute();
+$stmt->bind_result($broadcasterID, $accessToken);
+$stmt->fetch();
+$clientID = ''; // CHANGE TO MAKE THIS WORK
+
 // API endpoint to fetch followers
 $followersURL = "https://api.twitch.tv/helix/channels/followers?broadcaster_id=$broadcasterID";
-$clientID = ''; // CHANGE TO MAKE THIS WORK
 
 $allFollowers = [];
 $liveData = "";
